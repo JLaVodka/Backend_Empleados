@@ -1,6 +1,11 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import create_engine, text
+import requests 
+from pydantic import BaseModel
+
+class PreguntaIn(BaseModel):
+    pregunta: str
 
 app = FastAPI()
 
@@ -18,3 +23,25 @@ def listar_empleados():
             text("SELECT id, nombre, especialidad FROM empleados_empleado")
         ).mappings().all()
     return [dict(f) for f in filas]
+
+@app.post("/consultar-ia")
+def consultar_ia(pregunta_in: PreguntaIn):
+    api_key = os.environ["GEMINI_API_KEY"]
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+
+    contexto = (
+        "Eres un asistente que responde preguntas sobre gestión de "
+        "empleados y tareas asignadas dentro de una empresa. "
+        f"Pregunta: {pregunta_in.pregunta}"
+    )
+    payload = {"contents": [{"parts": [{"text": contexto}]}]}
+
+    try:
+        respuesta = requests.post(gemini_url, json=payload, timeout=10)
+        respuesta.raise_for_status()
+        datos = respuesta.json()
+        texto = datos["candidates"][0]["content"]["parts"][0]["text"]
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="No se pudo conectar con la IA")
+
+    return {"respuesta": texto}
