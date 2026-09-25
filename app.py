@@ -40,7 +40,8 @@ def consultar_ia(pregunta_in: PreguntaIn):
     payload = {
         "contents": [{"parts": [{"text": contexto}]}],
         "generationConfig": {
-            "maxOutputTokens": 60
+            "maxOutputTokens": 80,
+            "thinkingConfig": {"thinkingBudget": 0}
         }
     }
 
@@ -50,7 +51,10 @@ def consultar_ia(pregunta_in: PreguntaIn):
             respuesta = requests.post(gemini_url, json=payload, timeout=10)
             respuesta.raise_for_status()
             datos = respuesta.json()
-            texto = datos["candidates"][0]["content"]["parts"][0]["text"]
+            partes = datos["candidates"][0].get("content", {}).get("parts")
+            if not partes:
+                raise HTTPException(status_code=502, detail="La IA no generó texto en la respuesta.")
+            texto = partes[0]["text"]
             return {"respuesta": texto}
         except requests.HTTPError as e:
             codigo = e.response.status_code
