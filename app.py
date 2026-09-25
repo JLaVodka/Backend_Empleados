@@ -27,7 +27,7 @@ def listar_empleados():
 @app.post("/consultar-ia")
 def consultar_ia(pregunta_in: PreguntaIn):
     api_key = os.environ["GEMINI_API_KEY"]
-    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
     contexto = (
         "Eres un asistente que responde preguntas sobre gestión de "
