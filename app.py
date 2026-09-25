@@ -41,7 +41,10 @@ def consultar_ia(pregunta_in: PreguntaIn):
         respuesta.raise_for_status()
         datos = respuesta.json()
         texto = datos["candidates"][0]["content"]["parts"][0]["text"]
-    except requests.RequestException:
-        raise HTTPException(status_code=502, detail="No se pudo conectar con la IA")
+    except requests.RequestException as e:
+        detalle = str(e)
+        if e.response is not None:
+            detalle = f"{e.response.status_code}: {e.response.text}"
+        raise HTTPException(status_code=502, detail=detalle)
 
     return {"respuesta": texto}
