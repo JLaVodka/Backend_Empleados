@@ -30,10 +30,25 @@ def consultar_ia(pregunta_in: PreguntaIn):
     api_key = os.environ["GEMINI_API_KEY"]
     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
+    with engine.connect() as conn:
+        filas = conn.execute(text("""
+            SELECT t.titulo, t.estado, e.nombre AS empleado
+            FROM tareas_tarea t
+            LEFT JOIN empleados_empleado e ON t.empleado_id = e.id
+        """)).mappings().all()
+
+    if filas:
+        lineas = [f"- {f['titulo']} ({f['estado']}) — {f['empleado'] or 'sin asignar'}" for f in filas]
+        tareas_texto = "\n".join(lineas)
+    else:
+        tareas_texto = "No hay tareas registradas actualmente."
+
     contexto = (
         "Eres un asistente que responde preguntas sobre gestión de "
         "empleados y tareas asignadas dentro de una empresa. "
         "Responde de forma breve y directa, en un máximo de 20 palabras. "
+        "Esta es la lista actual de tareas:\n"
+        f"{tareas_texto}\n\n"
         f"Pregunta: {pregunta_in.pregunta}"
     )
 
