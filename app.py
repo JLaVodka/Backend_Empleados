@@ -65,7 +65,7 @@ def consultar_ia(pregunta_in: PreguntaIn):
     contexto = (
         "Eres un asistente que responde preguntas sobre gestión de "
         "empleados y tareas asignadas dentro de una empresa. "
-        "Responde de forma breve y directa, en un máximo de 20 palabras. "
+        "Responde de forma breve y directa, en un minimo de 10 y un maximo de 20 palabras. "
         f"Empleados:\n{empleados_texto}\n\n"
         f"Tareas:\n{tareas_texto}\n\n"
         f"Pregunta: {pregunta_in.pregunta}"
