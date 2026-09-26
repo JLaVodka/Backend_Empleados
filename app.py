@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import create_engine, text
-import requests 
+import requests
 from pydantic import BaseModel
 import time
 
@@ -12,6 +12,9 @@ app = FastAPI()
 
 url = os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1)
 engine = create_engine(url)
+
+# Timeout configurable por variable de entorno, con valor por defecto más realista
+GEMINI_TIMEOUT = float(os.environ.get("GEMINI_TIMEOUT", "25"))
 
 @app.get("/")
 def inicio():
@@ -61,9 +64,11 @@ def consultar_ia(pregunta_in: PreguntaIn):
     }
 
     intentos_maximos = 3
+    ultimo_error = None
+
     for intento in range(intentos_maximos):
         try:
-            respuesta = requests.post(gemini_url, json=payload, timeout=10)
+            respuesta = requests.post(gemini_url, json=payload, timeout=GEMINI_TIMEOUT)
             respuesta.raise_for_status()
             datos = respuesta.json()
             partes = datos["candidates"][0].get("content", {}).get("parts")
@@ -71,11 +76,24 @@ def consultar_ia(pregunta_in: PreguntaIn):
                 raise HTTPException(status_code=502, detail="La IA no generó texto en la respuesta.")
             texto = partes[0]["text"]
             return {"respuesta": texto}
+
         except requests.HTTPError as e:
             codigo = e.response.status_code
             if codigo == 503 and intento < intentos_maximos - 1:
-                time.sleep(2)
+                time.sleep(2 ** intento)  # backoff: 1s, 2s, 4s
                 continue
             raise HTTPException(status_code=codigo, detail=e.response.text)
+
+        
+        except (requests.Timeout, requests.ConnectionError) as e:
+            ultimo_error = e
+            if intento < intentos_maximos - 1:
+                time.sleep(2 ** intento)
+                continue
+            raise HTTPException(
+                status_code=504,
+                detail=f"Gemini no respondió a tiempo tras {intentos_maximos} intentos: {ultimo_error}"
+            )
+
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=str(e))
